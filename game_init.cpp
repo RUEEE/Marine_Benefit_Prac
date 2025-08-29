@@ -307,7 +307,7 @@ void InitData()
 
     InsertBossJmpData(5, u8"对话"                       ,0,false);
     InsertBossJmpData(5, u8"normal 1"                   ,1);
-    InsertBossJmpData(5, u8"spell 1 灿烂的爱的结晶"     ,2);
+    InsertBossJmpData(5, u8"spell 1 生命创造"           ,2);
     InsertBossJmpData(5, u8"normal 2"                   ,3);
     InsertBossJmpData(5, u8"spell 2 46亿年的岁月"       ,4);
     InsertBossJmpData(5, u8"normal 3"                   ,5);
@@ -697,8 +697,8 @@ EHOOK_DY(FullScreenWindSz, 0x653124, 4, {
 //#define DISCL_FOREGROUND    0x00000004
 //#define DISCL_BACKGROUND    0x00000008
 //#define DISCL_NOWINKEY      0x00000010
-PATCH_DY(DisableKeyOutOfWindow1, 0x43d50c, "05")
-PATCH_DY(DisableKeyOutOfWindow2, 0x43d667, "05")
+PATCH_DY(DisableKeyOutOfWindow1, 0x43d50c, "06")
+PATCH_DY(DisableKeyOutOfWindow2, 0x43d667, "06")
 EHOOK_DY(init_1, 0x458323, 2, {
     self->Disable();
     GuiCreate();

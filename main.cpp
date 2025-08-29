@@ -71,6 +71,14 @@ void RemoteInit()
 #undef THREAD_RETURN
 }
 
+
+std::vector<std::string> game_names = {
+"东方海惠堂rep系统版1.5.exe" ,
+"东方海惠堂.exe",
+"MarineBenefit.exe"
+"MB.exe"
+};
+
 int WINAPI wWinMain(
     [[maybe_unused]] HINSTANCE hInstance,
     [[maybe_unused]] HINSTANCE hPrevInstance,
@@ -79,5 +87,23 @@ int WINAPI wWinMain(
 {
 	VEHHookInit();
     RemoteInit();
-	LaunchGameDirectly(L"C:\\disk\\touhou\\2nd\\HHT\\东方海惠堂rep系统版1.5.exe");
+
+    std::vector<std::string> files;
+    for (auto& game_name : game_names)// enum game first
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(".")) {
+            if (entry.is_regular_file()) {
+                if (game_name == entry.path().filename().string())
+                {
+                    MessageBoxW(NULL, entry.path().filename().wstring().c_str(), L"找到了游戏", MB_OK);
+                    LaunchGameDirectly(entry.path().wstring().c_str());
+                    goto RET;
+                }
+            }
+        }
+    }
+    // LaunchGameDirectly(L"C:\\disk\\touhou\\2nd\\HHT\\东方海惠堂rep系统版1.5.exe");
+    //MessageBoxA(NULL, "没找到有效游戏,请确认\"东方海惠堂rep系统版1.5.exe\"存在", "", MB_OK);
+RET:
+    return 0;
 }
