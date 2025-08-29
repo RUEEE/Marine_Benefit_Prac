@@ -415,7 +415,7 @@ class PracUI : public GameGuiWnd
         SetItemWidthRel(-0.15f);
         SetAutoSpacing(true);
 
-        *mStage = 1;
+        *mStage = 0;
         *mLife = 8;
         *mBomb = 8;
         *mPower = 400;
