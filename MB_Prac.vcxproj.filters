@@ -80,6 +80,7 @@
     <ClInclude Include="ingame_UI.h">
       <Filter>UI</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rd\imgui\imgui.cpp">

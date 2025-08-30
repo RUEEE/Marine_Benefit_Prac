@@ -155,6 +155,7 @@
     <ClInclude Include="game_init.h" />
     <ClInclude Include="game_util.h" />
     <ClInclude Include="ingame_UI.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rd\imgui\imgui.cpp" />

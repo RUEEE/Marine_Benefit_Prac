@@ -57,6 +57,7 @@ void RemoteInit()
     ExeSig exeSig;
     if (!GetExeInfoEx((uintptr_t)GetCurrentProcess(), base, exeSig))
         THREAD_RETURN(InjectResult::Ok, 0);
+    // MessageBoxW(NULL, L"找到了游戏", L"找到了游戏", MB_OK);
     InitFunc();
     // This has to be ExitThread, because making wWinMain return will destruct any static classes 
     // and uninitialize a lot of C runtime library stuff that we'll need when the game hits our hooks.
@@ -102,8 +103,8 @@ int WINAPI wWinMain(
             }
         }
     }
-    // LaunchGameDirectly(L"C:\\disk\\touhou\\2nd\\HHT\\东方海惠堂rep系统版1.5.exe");
-    //MessageBoxA(NULL, "没找到有效游戏,请确认\"东方海惠堂rep系统版1.5.exe\"存在", "", MB_OK);
+    //LaunchGameDirectly(L"C:\\disk\\touhou\\2nd\\HHT\\东方海惠堂rep系统版1.5.exe");
+    MessageBoxA(NULL, "没找到有效游戏,请确认\"东方海惠堂rep系统版1.5.exe\"存在", "", MB_OK);
 RET:
     return 0;
 }

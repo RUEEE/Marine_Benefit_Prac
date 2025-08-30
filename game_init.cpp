@@ -11,6 +11,7 @@
 #include <format>
 #include <vector>
 #include <string>
+#include <set>
 
 #pragma warning(disable:4996)
 #define MSG(str) MessageBoxA(NULL,std::string(str).c_str(),"",MB_OK);
@@ -27,6 +28,111 @@ int GameGuiProgress = 0;
 bool g_is_full_screen = false;
 bool g_is_rep_version = false;
 
+std::set<unsigned short> charSet;
+
+char* GetCharSet(const char8_t *u8char)
+{
+    auto getlen = [](const char8_t* str) {
+        if ((*str & 0xF0) == 0xF0) return 4;
+        if ((*str & 0xE0) == 0xE0) return 3;
+        if ((*str & 0xC0) == 0xC0) return 2;
+        if ((*str & 0x80) == 0x0) return 1;
+        return -1;
+    };
+    auto getUChar = [](const char8_t* uch,int len) -> uint16_t
+    {
+        uint16_t s=0;
+        switch (len)
+        {
+        case 1:
+            s = uch[0]; 
+            break;
+        case 2:
+        {
+            uint8_t a = uch[0] & 0x1F;
+            uint8_t b = uch[1] & 0x3F;
+            s = (a << 6) | b;
+            break;
+        }
+        case 3:
+        {
+            uint8_t a = uch[0] & 0xF;
+            uint8_t b = uch[1] & 0x3F;
+            uint8_t c = uch[2] & 0x3F;
+            s = (a << 12) | (b << 6) | c;
+            break;
+        }
+        default:
+            break;
+        }
+        return s;
+    };
+    auto strlength = strlen((char*)u8char);
+    for (int i = 0;i < strlength && u8char[i]!=0;)
+    {
+        int len = getlen(u8char + i);
+        if (len == -1)
+        {
+            break;
+        }
+        else
+        {
+            int u = getUChar(u8char + i, len);
+            if (u != 0)
+                charSet.insert(u);
+        }
+        i += len;
+    }
+RET:
+    return (char*)u8char;
+}
+
+
+const ImWchar* GetGlyphRangesUsed()
+{
+    auto UnpackIntoRanges = [](std::set<uint16_t> charset, ImWchar* out_ranges)
+    {
+        for (auto& ch : charset)
+        {
+            out_ranges[0] = out_ranges[1] = ch;
+            out_ranges += 2;
+        }
+        out_ranges[0] = 0;
+    };
+    static const ImWchar base_ranges[] = // not zero-terminated
+    {
+        0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        // 0x2000, 0x206F, // General Punctuation
+        // 0x3000, 0x30FF, // CJK Symbols and Punctuations, Hiragana, Katakana
+        // 0x31F0, 0x31FF, // Katakana Phonetic Extensions
+        // 0xFF00, 0xFFEF  // Half-width characters
+    };
+    static ImWchar* full_ranges = nullptr;
+    if (full_ranges == nullptr)
+    {
+        int sz = IM_ARRAYSIZE(base_ranges) + charSet.size() * 2 + 1;
+        full_ranges = new ImWchar[sz];
+        memset(full_ranges, 0, sz*sizeof(ImWchar));
+    }
+    memcpy(full_ranges, base_ranges, sizeof(base_ranges));
+    UnpackIntoRanges(charSet, full_ranges + IM_ARRAYSIZE(base_ranges));
+    return &full_ranges[0];
+}
+
+void InitFont()
+{
+    //std::string s;
+    //for (auto& i : charSet)
+    //{
+    //    s = s + std::format(",{:x}",i);
+    //}
+    //MessageBoxA(NULL, s.c_str(), "", MB_OK);
+    
+    // LocaleCreateFont
+    auto& io = ImGui::GetIO();
+    ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\SimHei.ttf", 18.0f, nullptr, GetGlyphRangesUsed());
+}
+
 void Init(IDirect3DDevice9** ppDevice, HWND* phwnd,float* x)
 {
     ::ImGui::CreateContext();
@@ -40,13 +146,6 @@ void Init(IDirect3DDevice9** ppDevice, HWND* phwnd,float* x)
     Gui::ImplDX9HookReset();
     Gui::ImplWin32HookWndProc();
     Gui::ImplDX9AdjustDispSize();
-
-
-
-    // LocaleCreateFont
-    auto& io = ImGui::GetIO();
-    ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\SimHei.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
-    
 }
 
 void GuiCreate()
@@ -158,183 +257,191 @@ JmpType GetJmpType(int stage, int type)
         return no_later[type];
     return normal[type];
 }
-void InsertLatterJmpData(int stage, const char8_t* name, int time)
+void InsertLatterJmpData(int stage, const char* name, int time)
 {
     latter_jmps[stage].push_back((const char*)name);
     latter_time[stage].push_back(time);
 }
-void InsertFrontJmpData(int stage, const char8_t* name, int time)
+void InsertFrontJmpData(int stage, const char* name, int time)
 {
     front_jmps[stage].push_back((const char*)name);
     front_time[stage].push_back(time);
 }
 
-void InsertBossJmpData(int stage,const char8_t* name, int state, bool createbs = true)
+void InsertBossJmpData(int stage,const char* name, int state, bool createbs = true)
 {
     boss_jmps[stage].push_back((const char*)name);
     boss_jmps_boss_state[stage].push_back(state);
     boss_need_create[stage].push_back(createbs);
 }
 
-void InsertMBossJmpData(int stage, const char8_t* name, int state, bool createbs = true)
+void InsertMBossJmpData(int stage, const char* name, int state, bool createbs = true)
 {
     Mboss_jmps[stage].push_back((const char*)name);
     Mboss_jmps_boss_state[stage].push_back(state);
     Mboss_need_create[stage].push_back(createbs);
 }
 
+
+std::vector<const char*> stage_select;
+std::vector<const char*> type_select_1;
+std::vector<const char*> type_select_2;
+
 void InitData()
 {
+    stage_select = { GetCharSet(u8"stage 1"), GetCharSet(u8"stage 2"),GetCharSet(u8"stage 3"),GetCharSet(u8"stage 4"),GetCharSet(u8"stage 5"),GetCharSet(u8"stage 6"),GetCharSet(u8"stage ex") };
+    type_select_1 = { GetCharSet(u8"前半"), GetCharSet(u8"道中boss"),  GetCharSet(u8"后半"),  GetCharSet(u8"关底boss") };
+    type_select_2 = { GetCharSet(u8"前半"), GetCharSet(u8"道中boss"),  GetCharSet(u8"关底boss") };
     //st1
-    InsertFrontJmpData(0, u8"一开",            0);
-    InsertFrontJmpData(0, u8"一前半1",         2200);
+    InsertFrontJmpData(0, GetCharSet(u8"一开"),            0);
+    InsertFrontJmpData(0, GetCharSet(u8"一前半1"),         2200);
                                                
-    InsertLatterJmpData(0, u8"一后半",          0);
+    InsertLatterJmpData(0, GetCharSet(u8"一后半"),          0);
     //st2
-    InsertFrontJmpData(1, u8"二开",            0);
-    InsertLatterJmpData(1, u8"二后半1",         0);
+    InsertFrontJmpData(1, GetCharSet(u8"二开"),            0);
+    InsertLatterJmpData(1, GetCharSet(u8"二后半1"),         0);
 
-    InsertLatterJmpData(1, u8"二后半2",         790);//800
+    InsertLatterJmpData(1, GetCharSet(u8"二后半2"),         790);//800
 
     //st3
-    InsertFrontJmpData(2, u8"三开",            0);
-    InsertFrontJmpData(2, u8"三前半飞行阵",    710);//720
-    InsertFrontJmpData(2, u8"三前半飞行阵",    2490);//2500
+    InsertFrontJmpData(2, GetCharSet(u8"三开"),            0);
+    InsertFrontJmpData(2, GetCharSet(u8"三前半飞行阵"),    710);//720
+    InsertFrontJmpData(2, GetCharSet(u8"三前半飞行阵"),    2490);//2500
 
-    InsertLatterJmpData(2, u8"三后半1",         0);
-    InsertLatterJmpData(2, u8"三后半飞行阵",    890);//900
+    InsertLatterJmpData(2, GetCharSet(u8"三后半1"),         0);
+    InsertLatterJmpData(2, GetCharSet(u8"三后半飞行阵"),    890);//900
 
     //st4
-    InsertFrontJmpData(3, u8"四开",            0);
-    InsertFrontJmpData(3, u8"四前半1",         540);//550
-    InsertFrontJmpData(3, u8"四前半2",         3660);//3700
+    InsertFrontJmpData(3, GetCharSet(u8"四开"),            0);
+    InsertFrontJmpData(3, GetCharSet(u8"四前半1"),         540);//550
+    InsertFrontJmpData(3, GetCharSet(u8"四前半2"),         3660);//3700
 
-    InsertLatterJmpData(3, u8"四后半",         0);
+    InsertLatterJmpData(3, GetCharSet(u8"四后半"),         0);
 
     
     //st5
-    InsertFrontJmpData(4, u8"五开",            0);
-    InsertFrontJmpData(4, u8"五前半1",         2350);//2400
-    InsertFrontJmpData(4, u8"五前半2",         3450);//3500
-    InsertFrontJmpData(4, u8"五前半3",         4450);//4500
+    InsertFrontJmpData(4, GetCharSet(u8"五开"),            0);
+    InsertFrontJmpData(4, GetCharSet(u8"五前半1"),         2350);//2400
+    InsertFrontJmpData(4, GetCharSet(u8"五前半2"),         3450);//3500
+    InsertFrontJmpData(4, GetCharSet(u8"五前半3"),         4450);//4500
 
-    InsertLatterJmpData(4, u8"五后半1",         0);
-    InsertLatterJmpData(4, u8"五后半2",         2360);//2400
+    InsertLatterJmpData(4, GetCharSet(u8"五后半1"),         0);
+    InsertLatterJmpData(4, GetCharSet(u8"五后半2"),         2360);//2400
 
     
     //st6
-    InsertFrontJmpData(5, u8"六开",            0);
-    InsertFrontJmpData(5, u8"六前半1",         2060);//2100
-    InsertFrontJmpData(5, u8"六前半2",         4800);
+    InsertFrontJmpData(5, GetCharSet(u8"六开"),            0);
+    InsertFrontJmpData(5, GetCharSet(u8"六前半1"),         2060);//2100
+    InsertFrontJmpData(5, GetCharSet(u8"六前半2"),         4800);
 
     
     //stex
-    InsertFrontJmpData(6, u8"ex开",            0);
-    InsertFrontJmpData(6, u8"ex前半1",         2250);//2300
-    InsertFrontJmpData(6, u8"ex前半2",         3260);//3300
-    InsertFrontJmpData(6, u8"ex前半3",         4950);//5000
-    InsertFrontJmpData(6, u8"ex前半4",         7000);//7050
+    InsertFrontJmpData(6, GetCharSet(u8"ex开"),            0);
+    InsertFrontJmpData(6, GetCharSet(u8"ex前半1"),         2250);//2300
+    InsertFrontJmpData(6, GetCharSet(u8"ex前半2"),         3260);//3300
+    InsertFrontJmpData(6, GetCharSet(u8"ex前半3"),         4950);//5000
+    InsertFrontJmpData(6, GetCharSet(u8"ex前半4"),         7000);//7050
 
-    InsertLatterJmpData(6, u8"ex后半1",         0);
-    InsertLatterJmpData(6, u8"ex后半2",         600);//660
-    InsertLatterJmpData(6, u8"ex后半3",         1360);//1400
-    InsertLatterJmpData(6, u8"ex后半4",         3460);//3500
-    InsertLatterJmpData(6, u8"ex后半5",         4960);//5000
+    InsertLatterJmpData(6, GetCharSet(u8"ex后半1"),         0);
+    InsertLatterJmpData(6, GetCharSet(u8"ex后半2"),         600);//660
+    InsertLatterJmpData(6, GetCharSet(u8"ex后半3"),         1360);//1400
+    InsertLatterJmpData(6, GetCharSet(u8"ex后半4"),         3460);//3500
+    InsertLatterJmpData(6, GetCharSet(u8"ex后半5"),         4960);//5000
 
 
     // mboss
-    InsertMBossJmpData(0, u8"Mnormal 1"              , 0, false);
-    InsertMBossJmpData(0, u8"Mspell 1 高风险高回报"  , 2);
+    InsertMBossJmpData(0, GetCharSet(u8"Mnormal 1")              , 0, false);
+    InsertMBossJmpData(0, GetCharSet(u8"Mspell 1 高风险高回报")  , 2);
 
-    InsertMBossJmpData(1, u8"Mnormal 1"             , 0, false);
-    InsertMBossJmpData(1, u8"Mspell 1 俄勒冈旋涡"   , 2);
+    InsertMBossJmpData(1, GetCharSet(u8"Mnormal 1")             , 0, false);
+    InsertMBossJmpData(1, GetCharSet(u8"Mspell 1 俄勒冈旋涡")   , 2);
 
-    InsertMBossJmpData(2, u8"道中对话"                  , 0, false);
-    InsertMBossJmpData(2, u8"Mnormal 1"                 , 1);
-    InsertMBossJmpData(2, u8"Mspell 1 无底的安产大炮"   , 3);
+    InsertMBossJmpData(2, GetCharSet(u8"道中对话")                  , 0, false);
+    InsertMBossJmpData(2, GetCharSet(u8"Mnormal 1")                 , 1);
+    InsertMBossJmpData(2, GetCharSet(u8"Mspell 1 无底的安产大炮")   , 3);
 
-    InsertMBossJmpData(3, u8"Mnormal 1"                 , 0, false);
+    InsertMBossJmpData(3, GetCharSet(u8"Mnormal 1")                 , 0, false);
 
-    InsertMBossJmpData(4, u8"道中对话"                  , 0, false);
-    InsertMBossJmpData(4, u8"Mnormal 1"                 , 1);
-    InsertMBossJmpData(4, u8"Mspell 1 咒语的合唱"       , 2);
+    InsertMBossJmpData(4, GetCharSet(u8"道中对话")                  , 0, false);
+    InsertMBossJmpData(4, GetCharSet(u8"Mnormal 1")                 , 1);
+    InsertMBossJmpData(4, GetCharSet(u8"Mspell 1 咒语的合唱")       , 2);
     
-    InsertMBossJmpData(5, u8"Mspell 1 反正一颜色"       , 0, false);
-    InsertMBossJmpData(5, u8"Mspell 2 梦幻的泡沫"       , 2, false);
+    InsertMBossJmpData(5, GetCharSet(u8"Mspell 1 反正一颜色")       , 0, false);
+    InsertMBossJmpData(5, GetCharSet(u8"Mspell 2 梦幻的泡沫")       , 2, false);
     
-    InsertMBossJmpData(6, u8"Mspell 1 盐盈珠"           , 0, false);
-    InsertMBossJmpData(6, u8"Mspell 1 盐干珠"           , 2);
-    InsertMBossJmpData(6, u8"Mspell 1 出盐的神秘石臼"   , 3);
+    InsertMBossJmpData(6, GetCharSet(u8"Mspell 1 盐盈珠")           , 0, false);
+    InsertMBossJmpData(6, GetCharSet(u8"Mspell 1 盐干珠")           , 2);
+    InsertMBossJmpData(6, GetCharSet(u8"Mspell 1 出盐的神秘石臼")   , 3);
 
     // boss
-    InsertBossJmpData(0, u8"对话"                       ,0, false);
-    InsertBossJmpData(0, u8"normal 1"                   ,1);
-    InsertBossJmpData(0, u8"spell 1 木舟与泥舟"         ,2);
-    InsertBossJmpData(0, u8"normal 2"                   ,3);
-    InsertBossJmpData(0, u8"spell 2 三光姬狸"           ,4);
+    InsertBossJmpData(0, GetCharSet(u8"对话")                       ,0, false);
+    InsertBossJmpData(0, GetCharSet(u8"normal 1")                   ,1);
+    InsertBossJmpData(0, GetCharSet(u8"spell 1 木舟与泥舟")         ,2);
+    InsertBossJmpData(0, GetCharSet(u8"normal 2")                   ,3);
+    InsertBossJmpData(0, GetCharSet(u8"spell 2 三光姬狸")           ,4);
 
-    InsertBossJmpData(1, u8"对话"                       ,0, false);
-    InsertBossJmpData(1, u8"normal 1"                   ,1);
-    InsertBossJmpData(1, u8"spell 1 刻于石上的基因"     ,2);
-    InsertBossJmpData(1, u8"normal 2"                   ,3);
-    InsertBossJmpData(1, u8"spell 2 埃舍尔螺旋"         ,4);
-    InsertBossJmpData(1, u8"spell 3 潜在海中的龙尾"     ,5);
+    InsertBossJmpData(1, GetCharSet(u8"对话")                       ,0, false);
+    InsertBossJmpData(1, GetCharSet(u8"normal 1")                   ,1);
+    InsertBossJmpData(1, GetCharSet(u8"spell 1 刻于石上的基因")     ,2);
+    InsertBossJmpData(1, GetCharSet(u8"normal 2")                   ,3);
+    InsertBossJmpData(1, GetCharSet(u8"spell 2 埃舍尔螺旋")         ,4);
+    InsertBossJmpData(1, GetCharSet(u8"spell 3 潜在海中的龙尾")     ,5);
 
-    InsertBossJmpData(2, u8"normal 1"                   ,0, false);
-    InsertBossJmpData(2, u8"spell 1 未来预知"           ,3);
-    InsertBossJmpData(2, u8"normal 2"                   ,4);
-    InsertBossJmpData(2, u8"spell 2 右满舵海上火灾"     ,5);
-    InsertBossJmpData(2, u8"normal 3"                   ,6);
-    InsertBossJmpData(2, u8"spell 3 牧马玄上"           ,7);
+    InsertBossJmpData(2, GetCharSet(u8"normal 1")                   ,0, false);
+    InsertBossJmpData(2, GetCharSet(u8"spell 1 未来预知")           ,3);
+    InsertBossJmpData(2, GetCharSet(u8"normal 2")                   ,4);
+    InsertBossJmpData(2, GetCharSet(u8"spell 2 右满舵海上火灾")     ,5);
+    InsertBossJmpData(2, GetCharSet(u8"normal 3")                   ,6);
+    InsertBossJmpData(2, GetCharSet(u8"spell 3 牧马玄上")           ,7);
 
-    InsertBossJmpData(3, u8"对话"                       ,0, false);
-    InsertBossJmpData(3, u8"normal 1"                   ,1);
-    InsertBossJmpData(3, u8"spell 1 幻之楼阁"           ,2);
-    InsertBossJmpData(3, u8"normal 2"                   ,3);
-    InsertBossJmpData(3, u8"spell 2 海与空的混沌"       ,4);
-    InsertBossJmpData(3, u8"normal 3"                   ,5);
-    InsertBossJmpData(3, u8"spell 3 猪如的视角"         ,6);
-    InsertBossJmpData(3, u8"spell 4 自机相关符卡"       ,8);
+    InsertBossJmpData(3, GetCharSet(u8"对话")                       ,0, false);
+    InsertBossJmpData(3, GetCharSet(u8"normal 1")                   ,1);
+    InsertBossJmpData(3, GetCharSet(u8"spell 1 幻之楼阁")           ,2);
+    InsertBossJmpData(3, GetCharSet(u8"normal 2")                   ,3);
+    InsertBossJmpData(3, GetCharSet(u8"spell 2 海与空的混沌")       ,4);
+    InsertBossJmpData(3, GetCharSet(u8"normal 3")                   ,5);
+    InsertBossJmpData(3, GetCharSet(u8"spell 3 猪如的视角")         ,6);
+    InsertBossJmpData(3, GetCharSet(u8"spell 4 自机相关符卡")       ,8);
 
-    InsertBossJmpData(4, u8"对话"                       ,0, false);
-    InsertBossJmpData(4, u8"normal 1"                   ,1);
-    InsertBossJmpData(4, u8"spell 1 泪的八百万遍大念珠" ,2);
-    InsertBossJmpData(4, u8"normal 2"                   ,4);
-    InsertBossJmpData(4, u8"spell 2 星之舞"             ,5);
-    InsertBossJmpData(4, u8"normal 3"                   ,7);
-    InsertBossJmpData(4, u8"spell 3 命酒"               ,8);
-    InsertBossJmpData(4, u8"spell 4 大笑的八百万学士"   ,10);
+    InsertBossJmpData(4, GetCharSet(u8"对话")                       ,0, false);
+    InsertBossJmpData(4, GetCharSet(u8"normal 1")                   ,1);
+    InsertBossJmpData(4, GetCharSet(u8"spell 1 泪的八百万遍大念珠") ,2);
+    InsertBossJmpData(4, GetCharSet(u8"normal 2")                   ,4);
+    InsertBossJmpData(4, GetCharSet(u8"spell 2 星之舞")             ,5);
+    InsertBossJmpData(4, GetCharSet(u8"normal 3")                   ,7);
+    InsertBossJmpData(4, GetCharSet(u8"spell 3 命酒")               ,8);
+    InsertBossJmpData(4, GetCharSet(u8"spell 4 大笑的八百万学士")   ,10);
 
-    InsertBossJmpData(5, u8"对话"                       ,0,false);
-    InsertBossJmpData(5, u8"normal 1"                   ,1);
-    InsertBossJmpData(5, u8"spell 1 生命创造"           ,2);
-    InsertBossJmpData(5, u8"normal 2"                   ,3);
-    InsertBossJmpData(5, u8"spell 2 46亿年的岁月"       ,4);
-    InsertBossJmpData(5, u8"normal 3"                   ,5);
-    InsertBossJmpData(5, u8"spell 3 水压临界值突破"     ,6);
-    InsertBossJmpData(5, u8"normal 4"                   ,7);
-    InsertBossJmpData(5, u8"spell 4 自机相关符卡"       ,8);
-    InsertBossJmpData(5, u8"spell 5 海之恩惠"           ,10);
+    InsertBossJmpData(5, GetCharSet(u8"对话")                       ,0,false);
+    InsertBossJmpData(5, GetCharSet(u8"normal 1")                   ,1);
+    InsertBossJmpData(5, GetCharSet(u8"spell 1 生命创造")           ,2);
+    InsertBossJmpData(5, GetCharSet(u8"normal 2")                   ,3);
+    InsertBossJmpData(5, GetCharSet(u8"spell 2 46亿年的岁月")       ,4);
+    InsertBossJmpData(5, GetCharSet(u8"normal 3")                   ,5);
+    InsertBossJmpData(5, GetCharSet(u8"spell 3 水压临界值突破")     ,6);
+    InsertBossJmpData(5, GetCharSet(u8"normal 4")                   ,7);
+    InsertBossJmpData(5, GetCharSet(u8"spell 4 自机相关符卡")       ,8);
+    InsertBossJmpData(5, GetCharSet(u8"spell 5 海之恩惠")           ,10);
 
-    InsertBossJmpData(6, u8"对话"                       ,0,false);
-    InsertBossJmpData(6, u8"normal 1"                   ,1);
-    InsertBossJmpData(6, u8"spell 1 玉匣"               ,2);
-    InsertBossJmpData(6, u8"normal 2"                   ,3);
-    InsertBossJmpData(6, u8"spell 2 高维"               ,4);
-    InsertBossJmpData(6, u8"normal 3"                   ,5);
-    InsertBossJmpData(6, u8"spell 3 唱片机"             ,6);
-    InsertBossJmpData(6, u8"normal 4"                   ,7);
-    InsertBossJmpData(6, u8"spell 4 超美丽弹幕"         ,8);
-    InsertBossJmpData(6, u8"normal 5"                   ,10);
-    InsertBossJmpData(6, u8"spell 5 迷宫"               ,11);
-    InsertBossJmpData(6, u8"normal 6"                   ,12);
-    InsertBossJmpData(6, u8"spell 6 八百比流"           ,13);
-    InsertBossJmpData(6, u8"normal 7"                   ,15);
-    InsertBossJmpData(6, u8"spell 7 因果律操作"         ,16);
-    InsertBossJmpData(6, u8"spell 8 集中豪无"           ,17);
-    InsertBossJmpData(6, u8"normal 8"                   ,19);
-    InsertBossJmpData(6, u8"spell 9 THE过去现在未来"    ,20);
-    InsertBossJmpData(6, u8"spell 10 终符"              ,21);
+    InsertBossJmpData(6, GetCharSet(u8"对话")                       ,0,false);
+    InsertBossJmpData(6, GetCharSet(u8"normal 1")                   ,1);
+    InsertBossJmpData(6, GetCharSet(u8"spell 1 玉匣")               ,2);
+    InsertBossJmpData(6, GetCharSet(u8"normal 2")                   ,3);
+    InsertBossJmpData(6, GetCharSet(u8"spell 2 高维")               ,4);
+    InsertBossJmpData(6, GetCharSet(u8"normal 3")                   ,5);
+    InsertBossJmpData(6, GetCharSet(u8"spell 3 唱片机")             ,6);
+    InsertBossJmpData(6, GetCharSet(u8"normal 4")                   ,7);
+    InsertBossJmpData(6, GetCharSet(u8"spell 4 超美丽弹幕")         ,8);
+    InsertBossJmpData(6, GetCharSet(u8"normal 5")                   ,10);
+    InsertBossJmpData(6, GetCharSet(u8"spell 5 迷宫")               ,11);
+    InsertBossJmpData(6, GetCharSet(u8"normal 6")                   ,12);
+    InsertBossJmpData(6, GetCharSet(u8"spell 6 八百比流")           ,13);
+    InsertBossJmpData(6, GetCharSet(u8"normal 7")                   ,15);
+    InsertBossJmpData(6, GetCharSet(u8"spell 7 因果律操作")         ,16);
+    InsertBossJmpData(6, GetCharSet(u8"spell 8 集中豪无")           ,17);
+    InsertBossJmpData(6, GetCharSet(u8"normal 8")                   ,19);
+    InsertBossJmpData(6, GetCharSet(u8"spell 9 THE过去现在未来")    ,20);
+    InsertBossJmpData(6, GetCharSet(u8"spell 10 终符")              ,21);
 }
 
 
@@ -367,6 +474,7 @@ protected:
 
         mMenu.SetTextOffsetRel(x_offset_1, x_offset_2);
         mMuteki.SetTextOffsetRel(x_offset_1, x_offset_2);
+        mDisableX.SetTextOffsetRel(x_offset_1, x_offset_2);
     }
     virtual void OnContentUpdate() override
     {
@@ -374,6 +482,7 @@ protected:
         ImGui::Text("boss state:  %d", I32(BossState));
         ImGui::Text("stage time:  %d", I32(StageTime));
         mMuteki();
+        mDisableX();
     }
     virtual void OnPreUpdate() override
     {
@@ -389,17 +498,19 @@ protected:
 
     GuiHotKey mMenu{ "ModMenuToggle", "BACKSPACE", VK_BACK };
 
-    HOTKEY_DEFINE(mMuteki, (char*)u8"无敌", "F1", VK_F1)
+    HOTKEY_DEFINE(mMuteki, GetCharSet(u8"无敌"), "F1", VK_F1)
         EHOOK_HK(0x660863, 7, {
         I32(PlayerState) = 0;
+         })
+    HOTKEY_ENDDEF();
+         HOTKEY_DEFINE(mDisableX, GetCharSet(u8"禁用X键"), "F2", VK_F2)
+             EHOOK_HK(0x656e9a, 1, {
+             pCtx->Eip = 0x656ebb;
          })
     HOTKEY_ENDDEF();
 
 public:
 };
-std::vector<const char*> stage_select = { "stage 1", "stage 2", "stage 3", "stage 4", "stage 5", "stage 6", "stage ex" };
-std::vector<const char*> type_select_1 = std::vector<const char*>{ (const char*)u8"前半", (const char*)u8"道中boss", (const char*)u8"后半", (const char*)u8"关底boss" };
-std::vector<const char*> type_select_2 = std::vector<const char*>{ (const char*)u8"前半", (const char*)u8"道中boss", (const char*)u8"关底boss" };
 class PracUI : public GameGuiWnd
 {
     PracUI() noexcept
@@ -454,7 +565,7 @@ public:
         pracParam.bomb = *mBomb;
         pracParam.power = *mPower;
 
-        pracParam.oxygen = *mPower;
+        pracParam.oxygen = *mOxygen;
         pracParam.hydrogen = *mHydrogen;
         pracParam.graze = *mGraze;
         pracParam.score = *mScore;
@@ -699,14 +810,23 @@ EHOOK_DY(FullScreenWindSz, 0x653124, 4, {
 //#define DISCL_NOWINKEY      0x00000010
 PATCH_DY(DisableKeyOutOfWindow1, 0x43d50c, "06")
 PATCH_DY(DisableKeyOutOfWindow2, 0x43d667, "06")
+EHOOK_DY(EscR, 0x5e36cb, 6, {
+     if (InGameInputGet('R'))
+     {
+         I32(UI_Page) = 2;
+         I32(UI_CoolDown) = 0;
+     }
+}
+)
 EHOOK_DY(init_1, 0x458323, 2, {
     self->Disable();
+    InitData();
     GuiCreate();
 
     PracUI::singleton(); 
     THOverlay::singleton();
     
-    InitData();
+    InitFont();
 
     SetGameInputFunc([](DWORD key)->bool
         {
