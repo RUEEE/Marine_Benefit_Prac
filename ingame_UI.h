@@ -172,7 +172,8 @@ public:
     inline void SetItems(std::vector<const char*> items)
     {
         mItems = items;
-        mCurrent = 0;
+        if (mCurrent >= items.size())
+            mCurrent = items.size() - 1;
     }
 
     inline void SetLabel(const char* label)
