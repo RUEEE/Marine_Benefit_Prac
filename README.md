@@ -24,6 +24,10 @@
 **https://github.com/RUEEE/MB_Prac**
 **部分功能复制粘贴自THP**
 
+## 25.9.22
+- 修复了2boss 5Mboss非符问题
+- 增加了五后半绿风神
+
 ## 25.9.21
 - 加入了锁残,锁P,永续bgm
 
