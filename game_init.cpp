@@ -235,10 +235,11 @@ struct PracParam
 
 std::vector<const char*> front_jmps[7];
 std::vector<int> front_time[7];
-
+std::vector<std::function<void(void)>> front_inits[7];
 
 std::vector<const char*> latter_jmps[7];
 std::vector<int> latter_time[7];
+std::vector<std::function<void(void)>> latter_inits[7];
 
 std::vector<const char*> boss_jmps[7];
 std::vector<int> boss_jmps_boss_state[7];
@@ -257,15 +258,17 @@ JmpType GetJmpType(int stage, int type)
         return no_later[type];
     return normal[type];
 }
-void InsertLatterJmpData(int stage, const char* name, int time)
+void InsertLatterJmpData(int stage, const char* name, int time, std::function<void(void)> init_func = []() {return; })
 {
     latter_jmps[stage].push_back((const char*)name);
     latter_time[stage].push_back(time);
+    latter_inits[stage].push_back(init_func);
 }
-void InsertFrontJmpData(int stage, const char* name, int time)
+void InsertFrontJmpData(int stage, const char* name, int time, std::function<void(void)> init_func = []() {return; })
 {
     front_jmps[stage].push_back((const char*)name);
     front_time[stage].push_back(time);
+    front_inits[stage].push_back(init_func);
 }
 
 void InsertBossJmpData(int stage,const char* name, int state, bool createbs = true)
@@ -325,8 +328,23 @@ void InitData()
     InsertFrontJmpData(4, GetCharSet(u8"五前半2"),         3450);//3500
     InsertFrontJmpData(4, GetCharSet(u8"五前半3"),         4450);//4500
 
-    InsertLatterJmpData(4, GetCharSet(u8"五后半1"),         0);
-    InsertLatterJmpData(4, GetCharSet(u8"五后半2"),         2360);//2400
+    auto st5latterinitfunc = []() {
+        *(double*)(0xA87DC0) = -1.5707963267949;
+        int diff = *(int*)(0xA7E610);
+        double vals[] = { 2.0, 2.3, 2.6, 3.0 , 0.0, 0.0 };
+        *(double*)(0xA87DC8) = vals[diff];
+        *(double*)(0xA87DD0) = -0.3;
+        I32(0xA78558) = 100;
+        I32(0xA7855C) = 220;
+        int vals2[] = { 50, 45, 40, 35, 0, 0 };
+        I32(0xA78560) = vals2[diff];
+        I32(0xA78564) = 80;
+        
+    };
+
+    InsertLatterJmpData(4, GetCharSet(u8"蓝风神"),         0);
+    InsertLatterJmpData(4, GetCharSet(u8"绿风神"),         1190, st5latterinitfunc);//1200
+    InsertLatterJmpData(4, GetCharSet(u8"红风神"),         2390, st5latterinitfunc);//2400
 
     
     //st6
@@ -688,9 +706,16 @@ void CreateBoss(int stage, bool is_mid)
     Boss bs = is_mid?Bosses_mid[stage]:Bosses_end[stage];
     int32_t index = asm_call<0x643840,Cdecl,int32_t>(bs);
 
-    if (pracParam.stage == 1 && pracParam.jmp == 1)//stage 2 normal 1
+    if (pracParam.stage == 1 && pracParam.jmp == 1 && !is_mid)//stage 2 normal 1
     {
         DW(0xA87FF0 + 62 * index * 4) = 36;
+        *((double*)0xA88020 + 31 * index) = 172.0;
+        *((double*)0xA88028 + 31 * index) = -40.0;
+        *((double*)0xA88090 + 31 * index) = 192.0;
+        *((double*)0xA88098 + 31 * index) = 80.0;
+    }else if(pracParam.stage == 4 && pracParam.jmp == 1 && is_mid)//stage 5 mid normal 1
+    {
+        DW(0xA87FF0 + 62 * index * 4) = 85;
         *((double*)0xA88020 + 31 * index) = 172.0;
         *((double*)0xA88028 + 31 * index) = -40.0;
         *((double*)0xA88090 + 31 * index) = 192.0;
@@ -766,6 +791,7 @@ EHOOK_DY(Prac_Param_Set, 0x65775f, 6,
                 SetBgm(pracParam.stage, false);
                 I32(DramaState) = 0;
                 I32(StageTime) = front_time[pracParam.stage][pracParam.jmp];
+                front_inits[pracParam.stage][pracParam.jmp]();
                 break;
             case JMBoss:
                 if (boss_need_create[pracParam.stage][pracParam.jmp])//not dlg
@@ -780,6 +806,7 @@ EHOOK_DY(Prac_Param_Set, 0x65775f, 6,
                 SetBgm(pracParam.stage, false);
                 I32(DramaState) = 2;
                 I32(StageTime) = latter_time[pracParam.stage][pracParam.jmp];
+                latter_inits[pracParam.stage][pracParam.jmp]();
                 break;
             case JBoss:
                 if (boss_need_create[pracParam.stage][pracParam.jmp])//not dlg
