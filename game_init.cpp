@@ -454,7 +454,7 @@ class THOverlay : public GameGuiWnd {
     THOverlay() noexcept
     {
         SetTitle("Mod Menu");
-        SetFade(0.1f, 0.5f);
+        SetFade(0.9f, 0.5f);
         SetPos(10.0f, 10.0f);
         SetSize(0.0f, 0.0f);
         SetWndFlag(
@@ -475,6 +475,9 @@ protected:
         mMenu.SetTextOffsetRel(x_offset_1, x_offset_2);
         mMuteki.SetTextOffsetRel(x_offset_1, x_offset_2);
         mDisableX.SetTextOffsetRel(x_offset_1, x_offset_2);
+        mInfLives.SetTextOffsetRel(x_offset_1, x_offset_2);
+        mInfPower.SetTextOffsetRel(x_offset_1, x_offset_2);
+        mElBgm.SetTextOffsetRel(x_offset_1, x_offset_2);
     }
     virtual void OnContentUpdate() override
     {
@@ -483,6 +486,9 @@ protected:
         ImGui::Text("stage time:  %d", I32(StageTime));
         mMuteki();
         mDisableX();
+        mInfLives();
+        mInfPower();
+        mElBgm();
     }
     virtual void OnPreUpdate() override
     {
@@ -503,13 +509,38 @@ protected:
         I32(PlayerState) = 0;
          })
     HOTKEY_ENDDEF();
-         HOTKEY_DEFINE(mDisableX, GetCharSet(u8"½ûÓÃX¼ü"), "F2", VK_F2)
+
+    HOTKEY_DEFINE(mDisableX, GetCharSet(u8"½ûÓÃX¼ü"), "F2", VK_F2)
              EHOOK_HK(0x656e9a, 1, {
              pCtx->Eip = 0x656ebb;
          })
     HOTKEY_ENDDEF();
 
+
+    HOTKEY_DEFINE(mInfLives, GetCharSet(u8"Ëø²Ð"), "F3", VK_F3)
+    PATCH_HK(0x659081, "909090"),
+    PATCH_HK(0x660901, "909090")
+    HOTKEY_ENDDEF();
+
+
+    HOTKEY_DEFINE(mInfPower, GetCharSet(u8"ËøP"), "F4", VK_F4)
+    PATCH_HK(0x660987, "90909090909090909090")
+    HOTKEY_ENDDEF();
+
+    HOTKEY_DEFINE(mElBgm, GetCharSet(u8"ÓÀÐøbgm"), "F5", VK_F5)
+        EHOOK_HK(0x652D80, 1, {
+         int bgm_chg = I32(pCtx->Esp+4);
+         int bgm_cur = I32(0xA78E28);
+         if (bgm_chg == bgm_cur)
+         {
+             pCtx->Eip = 0x652EE2;
+         }
+         }),
+    PATCH_HK(0x5E3689, "9090909090")
+    
+    HOTKEY_ENDDEF();
 public:
+    // GuiHotKey mElBgm{ GetCharSet(u8"ÓÀÐøbgm"), "F4", VK_F4 };
 };
 class PracUI : public GameGuiWnd
 {
