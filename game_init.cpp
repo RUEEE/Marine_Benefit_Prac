@@ -687,11 +687,23 @@ void CreateBoss(int stage, bool is_mid)
     Boss Bosses_mid[] = { ST1_MID,ST2_MID,ST3_MID,ST4_MID,ST5_MID,ST6_MID,ST7_MID };
     Boss bs = is_mid?Bosses_mid[stage]:Bosses_end[stage];
     int32_t index = asm_call<0x643840,Cdecl,int32_t>(bs);
-    DW(0xA87FF0+ 62 * index * 4) = 14;
-    *((double*)0xA88020 + 31 * index) = 172.0;
-    *((double*)0xA88028 + 31 * index) = -40.0;
-    *((double*)0xA88090 + 31 * index) = 192.0;
-    *((double*)0xA88098 + 31 * index) = 80.0;
+
+    if (pracParam.stage == 1 && pracParam.jmp == 1)//stage 2 normal 1
+    {
+        DW(0xA87FF0 + 62 * index * 4) = 36;
+        *((double*)0xA88020 + 31 * index) = 172.0;
+        *((double*)0xA88028 + 31 * index) = -40.0;
+        *((double*)0xA88090 + 31 * index) = 192.0;
+        *((double*)0xA88098 + 31 * index) = 80.0;
+    }
+    else
+    {
+        DW(0xA87FF0 + 62 * index * 4) = 14;
+        *((double*)0xA88020 + 31 * index) = 172.0;
+        *((double*)0xA88028 + 31 * index) = -40.0;
+        *((double*)0xA88090 + 31 * index) = 192.0;
+        *((double*)0xA88098 + 31 * index) = 80.0;
+    }
 }
 void SetBgm(int stage, bool is_boss)
 {
