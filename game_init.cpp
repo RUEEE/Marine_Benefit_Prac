@@ -706,6 +706,21 @@ void CreateBoss(int stage, bool is_mid)
     Boss bs = is_mid?Bosses_mid[stage]:Bosses_end[stage];
     int32_t index = asm_call<0x643840,Cdecl,int32_t>(bs);
 
+    if (pracParam.stage == 3 && !is_mid)//stage 5 normal 1 color set
+    {
+        DW(0xA78558) = asm_call<0x5E34F0, Cdecl, int32_t>(255, 64, 64);
+        DW(0xA7855C) = asm_call<0x5E34F0, Cdecl, int32_t>(64, 64, 255);
+        DW(0xA78560) = asm_call<0x5E34F0, Cdecl, int32_t>(64, 255, 64);
+
+        DW(0xA78580) = asm_call<0x5E34F0, Cdecl, int32_t>(64, 64, 255);
+        DW(0xA78584) = asm_call<0x5E34F0, Cdecl, int32_t>(64, 255, 64);
+        DW(0xA78588) = asm_call<0x5E34F0, Cdecl, int32_t>(255, 64, 64);
+
+        DW(0xA785A8) = asm_call<0x5E34F0, Cdecl, int32_t>(64, 255, 64);
+        DW(0xA785AC) = asm_call<0x5E34F0, Cdecl, int32_t>(255, 64, 64);
+        DW(0xA785B0) = asm_call<0x5E34F0, Cdecl, int32_t>(64, 64, 255);
+    }
+
     if (pracParam.stage == 1 && pracParam.jmp == 1 && !is_mid)//stage 2 normal 1
     {
         DW(0xA87FF0 + 62 * index * 4) = 36;
