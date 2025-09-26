@@ -441,7 +441,7 @@ void InitData()
     InsertBossJmpData(5, GetCharSet(u8"spell 4 自机相关符卡")       ,8);
     InsertBossJmpData(5, GetCharSet(u8"spell 5 海之恩惠")           ,10);
 
-    InsertBossJmpData(6, GetCharSet(u8"对话")                       ,0,false);
+    InsertBossJmpData(6, GetCharSet(u8"对话")                       ,0,false);//0
     InsertBossJmpData(6, GetCharSet(u8"normal 1")                   ,1);
     InsertBossJmpData(6, GetCharSet(u8"spell 1 玉匣")               ,2);
     InsertBossJmpData(6, GetCharSet(u8"normal 2")                   ,3);
@@ -460,6 +460,8 @@ void InitData()
     InsertBossJmpData(6, GetCharSet(u8"normal 8")                   ,19);
     InsertBossJmpData(6, GetCharSet(u8"spell 9 THE过去现在未来")    ,20);
     InsertBossJmpData(6, GetCharSet(u8"spell 10 终符")              ,21);
+
+    InsertBossJmpData(6, GetCharSet(u8"因果律操作P3")              ,16);//19
 }
 
 
@@ -838,6 +840,16 @@ EHOOK_DY(Prac_Param_Set, 0x65775f, 6,
         }
     }
 )
+EHOOK_DY(Prac_Param_Set, 0x5D685C, 5,
+    {
+        if(pracParam.mode && pracParam.jmp==19 && pracParam.stage==6 && GetJmpType(pracParam.stage,pracParam.type)==JBoss)
+        {
+            asm_call<0x6434F0,Cdecl>(1, 100-(4000-300)/60, 0, 143);
+            I32(StageTime) = 3999;
+            pCtx->Eip = 0x5D80BE;
+        }
+    }
+    )
 HOOKSET_ENDDEF()
 
 HOOKSET_DEFINE(Hook_Update)
