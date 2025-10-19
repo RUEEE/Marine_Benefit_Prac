@@ -224,8 +224,8 @@ private:
     bool mToggle = false;
 
 public:
-    GuiCheckBox(const char* label)
-        : mLabel(const_cast<char*>(label))
+    GuiCheckBox(const char* label,bool initVal)
+        : mLabel(const_cast<char*>(label)),mToggle(initVal)
     {
     }
 

@@ -195,6 +195,7 @@ enum Addrs
 
     IsPrac               = 0xA7E618,
 
+    InitRandomSeed       = 0xA74C08,
     InitLife             = 0xA8CD7C,
     InitBomb             = 0xA8CD80,
     InitPower            = 0xA8CD70,
@@ -230,6 +231,8 @@ struct PracParam
     int32_t type;
     int32_t jmp;
     
+    bool is_random;
+    int seed;
 }pracParam;
 
 
@@ -501,9 +504,9 @@ protected:
     }
     virtual void OnContentUpdate() override
     {
-        ImGui::Text("drama state: %d", I32(DramaState));
-        ImGui::Text("boss state:  %d", I32(BossState));
-        ImGui::Text("stage time:  %d", I32(StageTime));
+        ImGui::Text("is random: %s (%d)", pracParam.is_random?"true":"false", pracParam.is_random ? pracParam.seed : 0);
+        ImGui::Text("prac state: %s", IsPracMode() ? "true" : "false");
+        ImGui::Text("DBS state: %d/%d/%d", I32(DramaState), I32(BossState), I32(StageTime));
         mMuteki();
         mDisableX();
         mInfLives();
@@ -606,8 +609,9 @@ private:
     GuiSlider<int32_t, ImGuiDataType_S32> mHydrogen  { "hydrogen",0,384};
     GuiDrag<int32_t, ImGuiDataType_S32> mGraze        { "graze",0,2147483647 };
     GuiDrag<int32_t, ImGuiDataType_S32> mScore        { "score",0,2147483647};
+    GuiCheckBox                         mIsRandom     { "isRandom", true};
 
-    GuiNavFocus mNavFocus{ "stage","type","jmp","life","bomb","power","oxygen","hydrogen","graze","score"};
+    GuiNavFocus mNavFocus{ "stage","type","jmp","life","bomb","power","oxygen","hydrogen","graze","score","isRandom" };
 
 public:
     void FillParam()
@@ -625,6 +629,8 @@ public:
 
         pracParam.type = *mType;
         pracParam.jmp = *mJmpSelect;
+
+        pracParam.is_random = *mIsRandom;
     }
 
     void PracticeMenu()
@@ -668,6 +674,7 @@ public:
         mHydrogen();
         mGraze();
         mScore();
+        mIsRandom();
 
         mNavFocus();
     }
@@ -793,6 +800,12 @@ EHOOK_DY(UI_Prac, 0x5E8730, 7,
 EHOOK_DY(Prac_Param_Set, 0x65775f, 6,
     {
         if (IsPracMode()) {
+            if (pracParam.is_random)
+            {
+                int t = timeGetTime() % 1024;
+                I32(InitRandomSeed) = t;
+                pracParam.seed = t;
+            }
             I32(InitLife) = pracParam.life;
             I32(InitBomb) = pracParam.bomb;
             I32(InitPower) = pracParam.power;
